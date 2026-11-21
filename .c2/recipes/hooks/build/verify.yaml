@@ -1,0 +1,52 @@
+id: portable-session-verify
+input_schema:
+  api_version: { type: string, required: true }
+  request: { type: string, required: true }
+  target_directory: { type: string, required: true }
+  candidate: { type: string, required: true }
+  base: { type: string, required: true }
+  documents: { type: artifact_map, default_value: {} }
+  settings: { type: artifact, required: false }
+inputs:
+  candidate: ${{ inputs.candidate }}
+sequence:
+- id: verify
+  op: command_execution
+  const: true
+  inputs:
+    env:
+      REPO: ${{ context.environment.op.worktree_path }}
+      OUTBOX: ${{ context.environment.op.outbox }}
+      CANDIDATE: ${{ inputs.candidate }}
+    run: |
+      set -eu
+      cd "$REPO"
+      if sh -eu -c '
+        test "$(git rev-parse HEAD)" = "$CANDIDATE"
+        test "$(node --version)" = v24.22.3
+        test "$(node -p process.platform)" = linux
+        test "$(node -p process.arch)" = arm64
+        test "$(pnpm --version)" = 12.21.0
+        pnpm install --frozen-lockfile --ignore-scripts
+        rm -f "$OUTBOX/focused-tests.json" "$OUTBOX/provider-probes.json" "$OUTBOX/consumer-report.json" "$OUTBOX/product-report.json"
+        node scripts/build-native.ts
+        node scripts/focused.ts --report "$OUTBOX/focused-tests.json"
+        pnpm run build
+        pnpm pack --pack-destination "$OUTBOX"
+        ARTIFACT=$(node scripts/package-path.ts "$OUTBOX")
+        node scripts/probes/run.ts --report "$OUTBOX/provider-probes.json" || true
+        # Assessment must retain consumer failures in the aggregate diagnostics.
+        node scripts/consumers/run.ts --artifact "$ARTIFACT" --report "$OUTBOX/consumer-report.json" || true
+        node scripts/product-report.ts --focused "$OUTBOX/focused-tests.json" --native "$OUTBOX/provider-probes.json" --consumers "$OUTBOX/consumer-report.json" --artifact "$ARTIFACT" --report "$OUTBOX/product-report.json"
+        node scripts/verify.ts --candidate "$CANDIDATE" --report "$OUTBOX/product-report.json" --artifact "$ARTIFACT"
+      ' > "$OUTBOX/tests.log" 2>&1; then
+        printf passed
+      else
+        printf failed
+      fi
+outputs:
+  api_version: c2.build-hook/v1
+  status: ${{ sequence.verify.outputs.stdout }}
+  summary: "${{ 'Portable-session checks ' + sequence.verify.outputs.stdout + '. See tests.log and focused, provider, consumer and product reports.' }}"
+  # Runtime Git transport artifacts are forbidden by the build-hook output contract.
+  artifact_refs: ${{ jq(sequence.verify.artifacts, 'with_entries(select(.key != "__git_state_thin_pack__" and .key != "diff_from_parent.diff" and .key != "diff_from_base.diff"))') }}

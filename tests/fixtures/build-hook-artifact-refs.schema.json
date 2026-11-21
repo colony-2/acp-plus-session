@@ -1,0 +1,15 @@
+{
+  "$id": "urn:c2j:hook:artifact-refs",
+  "type": "object",
+  "additionalProperties": { "type": "object" },
+  "maxProperties": 64,
+  "propertyNames": {
+    "not": {
+      "enum": [
+        "__git_state_thin_pack__",
+        "diff_from_parent.diff",
+        "diff_from_base.diff"
+      ]
+    }
+  }
+}
