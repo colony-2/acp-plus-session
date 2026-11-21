@@ -53,6 +53,24 @@ transport names forbidden by `c2.build-hook/v1`: `__git_state_thin_pack__`,
 artifacts. Available logs, reports and packed artifacts retain their original
 references, including when an early failure produces only a log.
 
+## Fixture PID readiness
+
+Ownership fixtures publish a canonical decimal PID greater than one with a final
+newline, using a closed sibling temporary file and rename. Publication follows
+signal handlers, initial writer output and interval setup. Internal readers wait
+for complete validated records with a monotonic deadline; malformed records and
+timeouts fail before process checks. Product private-pipe readiness is unchanged.
+
+`tests/process-ownership.test.ts` uses explicit publisher and reader observation
+barriers for empty, partial and missing-newline records. It also runs the original
+reader in isolation and requires its premature-readiness failures, then checks
+atomic visibility, publisher death and rename failure. Real ownership tests still
+require detached-descendant reaping, inherited-pipe closure and stable nonempty
+output. Core cancellation and parent-crash checks, writer probes and both installed
+library consumers use the same internal helper, copied into the consumer project
+without exporting it from the package. The candidate hook rejects a dirty checkout
+before installation; aggregate and final identity checks remain required.
+
 ## What the mocks exercise
 
 The existing `scripts/probes/endpoints.ts` uses Node's HTTP server on ephemeral

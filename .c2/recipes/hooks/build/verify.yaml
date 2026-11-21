@@ -23,6 +23,7 @@ sequence:
       cd "$REPO"
       if sh -eu -c '
         test "$(git rev-parse HEAD)" = "$CANDIDATE"
+        test -z "$(git status --porcelain)"
         test "$(node --version)" = v24.22.3
         test "$(node -p process.platform)" = linux
         test "$(node -p process.arch)" = arm64

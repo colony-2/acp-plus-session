@@ -22,6 +22,7 @@ try {
   const built = JSON.parse(await readFile(join(project, 'node_modules/acp-plus-session/dist/build-identity.json'), 'utf8'));
   if (built.source.commit !== source.commit || built.source.treeSha256 !== source.treeSha256 || built.lockfileSha256 !== sha256(await readFile('pnpm-lock.yaml'))) throw new Error('Candidate tarball does not identify the current source and lockfile');
   report.buildIdentity = built;
+  await cp('tests/fixtures/pid-readiness.mjs', join(project, 'pid-readiness.mjs'));
   for (const consumer of ['library', 'cli', 'acp']) {
     await cp(`tests/consumers/${consumer}.mjs`, join(project, `${consumer}.mjs`));
     for (const provider of ['codex', 'claude'] as const) {

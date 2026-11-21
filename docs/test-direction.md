@@ -109,6 +109,18 @@ Dependencies: **FS** private local filesystem; **F** controlled process/fault fi
 |D28|P0|Integration|`scripts/published.ts`|PK, A, M, L, EV|Published acceptance must record real publication references and repeat consumer startup, relocated continuation, branches and successor restoration against the fetched published artifact.|
 |R01|P0|Integration|`tests/core/owner.test.ts`|F, FS, L|Fast terminal exit must retain stdout and stderr while cwd-descriptor closure is delayed 200 milliseconds.|
 
+Fixture readiness regressions in `tests/process-ownership.test.ts` qualify S06,
+E09 and D10 alongside real process cleanup checks. Empty, decimal-prefix and
+missing-newline records remain pending at acknowledged barriers. The isolated
+original reader must fail those readiness assertions for empty and partial
+records. The shared internal publisher must hide its empty, partial and closed
+sibling temporary file until rename; death and rename failure must never expose
+partial readiness. Strict PID validation precedes process checks, and malformed
+records or readiness deadlines fail explicitly. Cancellation timing starts only
+after validated readiness. The parent-crash proof requires both inner processes
+to disappear while the outer leader is alive. These checks run through focused
+qualification; both-provider probes and eight installed consumers remain required.
+
 ## Candidate checks using pre-merge evidence
 
 Use Node 24.22.3, pnpm 12.21.0, installed compiler/Node headers and frozen project devDependencies. Preserve `--ignore-scripts`; do not adopt the failed five-worker-package proposal or reopen adapter approvals. [Owner correction](package-dependency-resolution.md).

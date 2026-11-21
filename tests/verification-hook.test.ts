@@ -76,7 +76,10 @@ test('the actual hook stops at failed boundaries and clears stale qualification 
   const run = hook.split('    run: |\n')[1].split('\noutputs:')[0].split('\n').map(s => s.slice(6)).join('\n');
   await writeFile(join(bin, 'git'), `#!/bin/sh
 printf 'git\\n' >> "$OUTBOX/calls"
-if [ "$FAIL_STAGE" = git ]; then printf wrong; else printf candidate; fi
+case "$1" in
+  rev-parse) if [ "$FAIL_STAGE" = git ]; then printf wrong; else printf candidate; fi;;
+  status) if [ "$FAIL_STAGE" = dirty ]; then printf " M fixture"; fi;;
+esac
 `, { mode: 0o700 });
   await writeFile(join(bin, 'pnpm'), `#!/bin/sh
 printf 'pnpm %s\\n' "$*" >> "$OUTBOX/calls"
@@ -107,19 +110,19 @@ case "$1" in
   *) exit 99;;
 esac
 `, { mode: 0o700 });
-  for (const stage of ['git', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact', 'consumers', 'report', 'assess', 'success']) {
+  for (const stage of ['git', 'dirty', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact', 'consumers', 'report', 'assess', 'success']) {
     await rm(join(outbox, 'calls'), { force: true });
     for (const name of ['focused-tests', 'provider-probes', 'consumer-report', 'product-report']) await writeFile(join(outbox, name + '.json'), 'stale report');
     const stdout = execFileSync('/bin/sh', ['-c', run], { encoding: 'utf8', env: { PATH: `${bin}:/usr/bin:/bin`, REPO: root, OUTBOX: outbox, CANDIDATE: 'candidate', FAIL_STAGE: stage } });
     assert.equal(stdout, stage === 'success' ? 'passed' : 'failed');
     const calls = await readFile(join(outbox, 'calls'), 'utf8');
-    if (!['git', 'node', 'platform', 'arch', 'pnpm', 'install'].includes(stage)) {
+    if (!['git', 'dirty', 'node', 'platform', 'arch', 'pnpm', 'install'].includes(stage)) {
       for (const name of ['focused-tests', 'provider-probes', 'consumer-report', 'product-report']) await assert.rejects(access(join(outbox, name + '.json')));
     }
-    if (['git', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact'].includes(stage)) assert.ok(!calls.includes('node scripts/probes/run.ts'), `${stage} must stop before provider launch`);
+    if (['git', 'dirty', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact'].includes(stage)) assert.ok(!calls.includes('node scripts/probes/run.ts'), `${stage} must stop before provider launch`);
     if (['consumers', 'report', 'assess', 'success'].includes(stage)) assert.ok(calls.includes('node scripts/probes/run.ts'), 'raw negative controls do not suppress product checks');
     if (stage === 'consumers') assert.ok(calls.includes('node scripts/product-report.ts') && calls.includes('node scripts/verify.ts'), 'consumer failure reaches aggregate assessment and still fails the hook');
-    if (['git', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact', 'report'].includes(stage)) assert.ok(!calls.includes('node scripts/verify.ts'), `${stage} must stop before assessment`);
+    if (['git', 'dirty', 'node', 'platform', 'arch', 'pnpm', 'install', 'native', 'focused', 'build', 'pack', 'artifact', 'report'].includes(stage)) assert.ok(!calls.includes('node scripts/verify.ts'), `${stage} must stop before assessment`);
   }
 });
 
